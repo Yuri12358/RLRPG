@@ -205,6 +205,7 @@ void Game::run() {
         termRend.setCursorPosition(hero->pos);
 
         char inp = termRead.readChar();
+        runAction(inp);
         hero->processInput(inp);
         hero->checkVisibleCells();
 
@@ -379,6 +380,19 @@ void Game::initialize() {
     else
         readMap();
 
+    // for test
+    bindAction('Q', [this] {
+        termRend
+            .clear()
+            .setCursorPosition({})
+            .put("Good bye...")
+            .display();
+
+        termRead.readChar();
+
+        exit = true;
+    });
+    
     loadData();
 
     for (auto const &[id, _] : potionTypes)
@@ -681,5 +695,15 @@ Ptr<Item> Game::createItem(std::string const & id) {
             return it->second->clone();
     }
     return {};
+}
+
+bool Game::runAction(ActionKey const& key) {
+    const auto it = actions.find(key);
+    if (it == actions.end()) {
+        return false;
+    }
+
+    it->second();
+    return true;
 }
 

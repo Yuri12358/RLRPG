@@ -21,6 +21,7 @@
 #include<list>
 #include<memory>
 #include<type_traits>
+#include<functional>
 
 class Unit;
 class Hero;
@@ -54,6 +55,11 @@ namespace detail {
 
 class Game {
 public:
+    using Action = std::function<void()>;
+    using ActionKey = char;
+    using ActionMap = std::unordered_map<ActionKey, Action>;
+    using ActionConnection = ActionMap::const_iterator;
+
     void run();
 
     LevelData const & level() const { return levelData; }
@@ -115,6 +121,11 @@ public:
     void addMessage(std::string_view msg);
     void drop(Ptr<Item> item, Coord2i to);
 
+    template<class ActionType>
+    ActionConnection bindAction(ActionKey const& key, ActionType&& action) {
+        return actions.insert_or_assign(key, std::forward<ActionType>(action)).first;
+    }
+
 private:
     void printMenu(std::vector<std::string_view> const & items, int activeItem);
     tl::optional<std::string> processMenu(std::string_view title,
@@ -152,6 +163,8 @@ private:
     void initialize();
     void initField();
     void readMap();
+
+    bool runAction(ActionKey const& key);
 
     ItemPile::iterator findItemAt(Coord2i cell, std::string_view id);
     bool randomlySetOnMap(Ptr<Item> item);
@@ -192,6 +205,8 @@ private:
     Hero * hero;
 
     Ptr<Hero> heroTemplate;
+
+    ActionMap actions;
 
     int mode = 1;
     int turns = 0;
