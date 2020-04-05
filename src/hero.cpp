@@ -9,6 +9,7 @@
 #include<items/ammo.hpp>
 #include<items/potion.hpp>
 #include<items/scroll.hpp>
+#include<compat/functional.hpp>
 
 #include<fmt/core.h>
 #include<fmt/printf.h>
@@ -20,6 +21,65 @@
 using namespace fmt::literals;
 using fmt::format;
 using Random = effolkronium::random_static;
+
+void Hero::bindControls() {
+    auto actionMove = [this] (char control) {
+        auto offset = toVec2i(*getDirectionByControl(control));
+        moveTo(pos + offset);
+    };
+
+    for (Game::ActionKey const& control : {
+            CONTROL_UPLEFT, CONTROL_UP, CONTROL_UPRIGHT,
+            CONTROL_LEFT, CONTROL_RIGHT,
+            CONTROL_DOWNLEFT, CONTROL_DOWN, CONTROL_DOWNRIGHT })
+        g_game.bindKeyHandler(control, actionMove);
+
+    g_game.bindKeyHandler(CONTROL_EAT, [this] {
+        eat();
+    });
+    g_game.bindKeyHandler(CONTROL_PICKUP, [this] {
+        pickUp();
+    });
+    g_game.bindKeyHandler(CONTROL_SHOWINVENTORY, [this] {
+        showInventory();
+    });
+    g_game.bindKeyHandler(CONTROL_WEAR, [this] {
+        wearArmor();
+    });
+    g_game.bindKeyHandler(CONTROL_WIELD, [this] {
+        wieldWeapon();
+    });
+    g_game.bindKeyHandler(CONTROL_TAKEOFF, [this] {
+        if (armor == nullptr)
+            g_game.skipUpdate();
+        else
+            takeArmorOff();
+    });
+    g_game.bindKeyHandler(CONTROL_UNEQUIP, [this] {
+        if (weapon == nullptr)
+            g_game.skipUpdate();
+        else
+            unequipWeapon();
+    });
+    g_game.bindKeyHandler(CONTROL_DROP, [this] {
+        dropItems();
+    });
+    g_game.bindKeyHandler(CONTROL_SHOOT, [this] {
+        shoot();
+    });
+    g_game.bindKeyHandler(CONTROL_THROW, [this] {
+        throwItem();
+    });
+    g_game.bindKeyHandler(CONTROL_DRINK, [this] {
+        drinkPotion();
+    });
+    g_game.bindKeyHandler(CONTROL_RELOAD, [this] {
+        reloadWeapon();
+    });
+    g_game.bindKeyHandler(CONTROL_READ, [this] {
+        readScroll();
+    });
+}
 
 int Hero::getLevelUpXP() const {
     return level * level + 4;
@@ -318,114 +378,6 @@ void Hero::eat() {
         inventory.remove(choice);
     } else {
         item.count--;
-    }
-}
-
-void Hero::processInput(char inp) {
-    switch (inp) {
-        case CONTROL_UP:
-        case CONTROL_DOWN:
-        case CONTROL_LEFT:
-        case CONTROL_RIGHT:
-        case CONTROL_UPLEFT:
-        case CONTROL_UPRIGHT:
-        case CONTROL_DOWNLEFT:
-        case CONTROL_DOWNRIGHT: {
-            auto offset = toVec2i(*getDirectionByControl(inp));
-            moveTo(pos + offset);
-            break;
-        }
-        case CONTROL_PICKUP:
-            pickUp();
-            break;
-        case CONTROL_EAT:
-            eat();
-            break;
-        case CONTROL_SHOWINVENTORY:
-            showInventory();
-            break;
-        case CONTROL_WEAR:
-            wearArmor();
-            break;
-        case CONTROL_WIELD:
-            wieldWeapon();
-            break;
-        case CONTROL_TAKEOFF:
-            if (armor == nullptr)
-                g_game.skipUpdate();
-            else
-                takeArmorOff();
-            break;
-        case CONTROL_UNEQUIP:
-            if (weapon == nullptr)
-                g_game.skipUpdate();
-            else
-                unequipWeapon();
-            break;
-        case CONTROL_DROP:
-            dropItems();
-            break;
-        case CONTROL_THROW:
-            throwItem();
-            break;
-        case CONTROL_SHOOT:
-            shoot();
-            break;
-        case CONTROL_DRINK:
-            drinkPotion();
-            break;
-        case CONTROL_RELOAD:
-            reloadWeapon();
-            break;
-        case CONTROL_READ:
-            readScroll();
-            break;
-        case '\\': {
-            char hv = g_game.getReader().readChar();
-
-            if (hv == 'h') {
-                if (g_game.getReader().readChar() == 'e') {
-                    if (g_game.getReader().readChar() == 'a') {
-                        if (g_game.getReader().readChar() == 'l') {
-                            hunger = 3000;
-                            health = maxHealth * 100;
-                        }
-                    }
-                }
-            }
-
-            if (hv == 'w') {
-                if (g_game.getReader().readChar() == 'a') {
-                    if (g_game.getReader().readChar() == 'l') {
-                        if (g_game.getReader().readChar() == 'l') {
-                            if (g_game.getReader().readChar() == 's') {
-                                canMoveThroughWalls = true;
-                            }
-                        }
-                    }
-                }
-            } else if (hv == 'd') {
-                if (g_game.getReader().readChar() == 's') {
-                    if (g_game.getReader().readChar() == 'c') {
-                        canMoveThroughWalls = false;
-                    }
-                } else {
-                    //g_game.getItemsMap().at(1, 1).push_back(g_game.getFoodTypes()[0]->clone());
-                }
-            } else if (hv == 'k') {
-                if (g_game.getReader().readChar() == 'i') {
-                    if (g_game.getReader().readChar() == 'l') {
-                        if (g_game.getReader().readChar() == 'l') {
-                            health -= (health * 2) / 3;
-                            g_game.addMessage("Ouch!");
-                        }
-                    }
-                }
-            }
-            break;
-        }
-        default:
-            break;
     }
 }
 

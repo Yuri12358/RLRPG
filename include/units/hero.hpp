@@ -35,7 +35,6 @@ public:
 
     void checkVisibleCells();
     void clearRightPane() const;
-    void processInput(char inp);
 
     bool isInvisible() const;
     bool isMapInInventory() const;
@@ -49,6 +48,8 @@ public:
 
     template<class ... Args>
     bool seenUpdated(Args && ... args) const { return seenMap.at(std::forward<Args>(args)...); }
+
+    void bindControls();
 
 private:
     void attackEnemy(Coord2i cell);

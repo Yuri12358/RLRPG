@@ -7,6 +7,7 @@
 #include<registry.hpp>
 #include<meta/check.hpp>
 #include<ptr.hpp>
+#include<action_map.hpp>
 
 #include<effolkronium/random.hpp>
 
@@ -55,10 +56,8 @@ namespace detail {
 
 class Game {
 public:
-    using Action = std::function<void()>;
     using ActionKey = char;
-    using ActionMap = std::unordered_map<ActionKey, Action>;
-    using ActionConnection = ActionMap::const_iterator;
+    using Actions = ActionMap<ActionKey>;
 
     void run();
 
@@ -121,10 +120,8 @@ public:
     void addMessage(std::string_view msg);
     void drop(Ptr<Item> item, Coord2i to);
 
-    template<class ActionType>
-    ActionConnection bindAction(ActionKey const& key, ActionType&& action) {
-        return actions.insert_or_assign(key, std::forward<ActionType>(action)).first;
-    }
+    Actions::Connection bindKeyHandler(ActionKey const& key, Actions::HandlerNoArgs handler);
+    Actions::Connection bindKeyHandler(ActionKey const& key, Actions::HandlerWithKeyArg handler);
 
 private:
     void printMenu(std::vector<std::string_view> const & items, int activeItem);
@@ -206,7 +203,7 @@ private:
 
     Ptr<Hero> heroTemplate;
 
-    ActionMap actions;
+    Actions actions;
 
     int mode = 1;
     int turns = 0;

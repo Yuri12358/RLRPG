@@ -206,7 +206,6 @@ void Game::run() {
 
         char inp = termRead.readChar();
         runAction(inp);
-        hero->processInput(inp);
         hero->checkVisibleCells();
 
         if (not skippingUpdate()) {
@@ -381,7 +380,7 @@ void Game::initialize() {
         readMap();
 
     // for test
-    bindAction('Q', [this] {
+    bindKeyHandler('Q', [this] {
         termRend
             .clear()
             .setCursorPosition({})
@@ -403,6 +402,7 @@ void Game::initialize() {
     spawnUnits();
     setItems();
 
+    hero->bindControls();
     hero->checkVisibleCells();
 }
 
@@ -698,12 +698,14 @@ Ptr<Item> Game::createItem(std::string const & id) {
 }
 
 bool Game::runAction(ActionKey const& key) {
-    const auto it = actions.find(key);
-    if (it == actions.end()) {
-        return false;
-    }
+    return actions.run(key) > 0;
+}
 
-    it->second();
-    return true;
+Game::Actions::Connection Game::bindKeyHandler(ActionKey const& key, Actions::HandlerNoArgs handler) {
+    return actions.connect(key, std::move(handler));
+}
+
+Game::Actions::Connection Game::bindKeyHandler(ActionKey const& key, Actions::HandlerWithKeyArg handler) {
+    return actions.connect(key, std::move(handler));
 }
 
