@@ -12,13 +12,15 @@ include_directories(external/include)
 
 include(external/external.cmake)
 
-find_package(Curses REQUIRED)
+if(UNIX)
+    find_package(Curses REQUIRED)
+endif()
+
+
 
 add_executable(RLRPG
         include/termlib/abstract_terminal_window.hpp
         include/termlib/default_window_provider.hpp
-        include/termlib/ncurses_color_pair.hpp
-        include/termlib/ncurses_terminal_window.hpp
         include/termlib/terminal_color.hpp
         include/termlib/terminal_reader.hpp
         include/termlib/terminal_renderer.hpp
@@ -75,5 +77,18 @@ add_executable(RLRPG
         src/yaml_unit_loader.cpp
         README.md
         tips.txt)
+
+if(WIN32)
+	target_sources(RLRPG
+		PRIVATE
+			include/termlib/winapi_terminal_window.hpp
+	)
+elseif(UNIX)
+	target_sources(RLRPG
+		PRIVATE
+			include/termlib/ncurses_color_pair.hpp
+			include/termlib/ncurses_terminal_window.hpp
+	)
+endif()
 
 target_link_libraries(RLRPG fmt::fmt ${CURSES_LIBRARIES} ${RLRPG_YAML_TARGET})
