@@ -2,16 +2,14 @@
 
 #ifdef WIN32
 #include<termlib/winapi_terminal_window.hpp>
-AbstractTerminalWindow & DefaultWindowProvider::getWindow() {
-    static WinAPITerminalWindow window;
-    return window;
-}
+using DefaultTerminalWindow = WinAPITerminalWindow;
 #else
 #include<termlib/ncurses_terminal_window.hpp>
-AbstractTerminalWindow & DefaultWindowProvider::getWindow() {
-    static NcursesTerminalWindow window;
-    return window;
-}
+using DefaultTerminalWindow = NcursesTerminalWindow;
 #endif
 
+AbstractTerminalWindow & DefaultWindowProvider::getWindow() {
+    static DefaultTerminalWindow window;
+    return window;
+}
 
