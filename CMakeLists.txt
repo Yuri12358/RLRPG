@@ -16,8 +16,6 @@ if(UNIX)
     find_package(Curses REQUIRED)
 endif()
 
-
-
 add_executable(RLRPG
         include/termlib/abstract_terminal_window.hpp
         include/termlib/default_window_provider.hpp
@@ -28,6 +26,8 @@ add_executable(RLRPG
         include/termlib/termlib.hpp
         include/termlib/vec2.hpp
         include/meta/check.hpp
+        include/compat/functional.hpp
+        include/compat/type_traits.hpp
         include/items/ammo.hpp
         include/items/armor.hpp
         include/items/item.hpp
@@ -89,6 +89,15 @@ elseif(UNIX)
 			include/termlib/ncurses_color_pair.hpp
 			include/termlib/ncurses_terminal_window.hpp
 	)
+endif()
+
+set_target_properties(RLRPG PROPERTIES CXX_EXTENSIONS OFF)
+if(MSVC)
+	target_compile_definitions(RLRPG PUBLIC -DNOMINMAX)
+	if(NOT(MSVC_VERSION LESS 1910))
+		message("Detected not-so-old msvc, enabling permissive mode")
+		add_compile_options (/permissive-)
+	endif()
 endif()
 
 target_link_libraries(RLRPG fmt::fmt ${CURSES_LIBRARIES} ${RLRPG_YAML_TARGET})

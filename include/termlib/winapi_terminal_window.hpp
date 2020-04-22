@@ -2,15 +2,24 @@
 #define WINAPI_TERMINAL_WINDOW_HPP
 
 #include"abstract_terminal_window.hpp"
+
+#include"compat/functional.hpp"
+#include"compat/type_traits.hpp"
+
 #include<windows.h>
 #include<cstdio>
 #include<cassert>
+#include<chrono>
 
 class WinAPITerminalWindow : public AbstractTerminalWindow {
+	using Clock = std::chrono::steady_clock;
+	using TimeoutInterval = std::chrono::milliseconds;
+
 public:
     WinAPITerminalWindow()
 		: inputHandle(GetStdHandle(STD_INPUT_HANDLE))
 		, outputHandle(GetStdHandle(STD_OUTPUT_HANDLE)) {
+		WinAPITerminalWindow::setEchoing(false);
     }
 
     void setCursorPosition(Coord2i position) override {
@@ -31,13 +40,19 @@ public:
 
 	[[nodiscard]]
     tl::optional<char> getChar(int timeoutMillis = -1) override {
-		return tl::nullopt;
+		return lastKeyPressData.map_or_else(
+			bind_front(&WinAPITerminalWindow::extractRepeatedKey, this),
+			bind_front(&WinAPITerminalWindow::readKeyFromConsole, this, timeoutAsMillis(timeoutMillis)));
     }
 
     void setTextStyle(TextStyle style) override {
     }
 
-    void setEchoing(bool e) override {
+    void setEchoing(bool echoing) override {
+		DWORD consoleModeFlags;
+		GetConsoleMode(inputHandle, &consoleModeFlags);
+		setBits(consoleModeFlags, ENABLE_ECHO_INPUT, echoing);
+		SetConsoleMode(inputHandle, consoleModeFlags);
     }
 
 	[[nodiscard]]
@@ -65,7 +80,7 @@ public:
 			outputHandle,
 			&bufferInfo.srWindow,
 			nullptr,
-			COORD{ 0, -bufferInfo.dwSize.Y },
+			COORD{ 0, static_cast<SHORT>(-bufferInfo.dwSize.Y)},
 			&charInfo
 		);
     }
@@ -96,6 +111,7 @@ private:
 		return Vec2i{ coords.X, coords.Y };
 	}
 
+	[[nodiscard]]
 	static WORD toWinAPIForegroundColor(Color color) noexcept {
 		switch (color) {
 		case Color::Black:   return 0;
@@ -112,10 +128,77 @@ private:
 		}
 	}
 
+	[[nodiscard]]
 	static WORD toWinAPIBackgroundColor(Color color) noexcept {
 		return toWinAPIForegroundColor(color) << 4;
 	}
 
+	tl::optional<char> readKeyFromConsole(tl::optional<TimeoutInterval> timeoutMillis) noexcept {
+		namespace chrono = std::chrono;
+		Clock::time_point now = Clock::now();
+		Clock::time_point const waitUntil = timeoutMillis.map_or(add(now), (Clock::time_point::max)());
+
+		do {
+			auto const timeoutLeft = chrono::duration_cast<TimeoutInterval>(waitUntil - now);
+			if (WaitForSingleObject(inputHandle, timeoutLeft.count()) != WAIT_OBJECT_0) {
+				return tl::nullopt;
+			}
+
+			INPUT_RECORD record;
+			DWORD read{};
+			ReadConsoleInput(inputHandle, &record, 1, &read);
+			if (read == 1) {
+				switch (record.EventType) {
+				case KEY_EVENT:
+					processKeyEvent(record.Event.KeyEvent);
+					return extractRepeatedKey(*lastKeyPressData);
+				default:
+					break;
+				}
+			}
+
+			now = Clock::now();
+		} while (now < waitUntil);
+
+		return tl::nullopt;
+	}
+
+	struct LastKeyPressData {
+		char key{};
+		int repeats{};
+	};
+
+	char extractRepeatedKey(LastKeyPressData& pressData) noexcept {
+		auto const key = pressData.key;
+		--pressData.repeats;
+		if (pressData.repeats == 0) {
+			lastKeyPressData.reset();
+		}
+		return key;
+	}
+
+	void processKeyEvent(KEY_EVENT_RECORD const& event) {
+		assert(!lastKeyPressData.has_value());
+		lastKeyPressData = LastKeyPressData{ event.uChar.AsciiChar, event.wRepeatCount };
+	}
+
+	static tl::optional<TimeoutInterval> timeoutAsMillis(int millis) noexcept {
+		if (millis == -1) {
+			return tl::nullopt;
+		}
+		return TimeoutInterval(millis);
+	}
+
+	template<class T>
+	static void setBits(T& flags, type_identity_t<T> bitMask, bool val) noexcept {
+		if (val) {
+			flags |= bitMask;
+		} else {
+			flags &= ~bitMask;
+		}
+	}
+
+	tl::optional<LastKeyPressData> lastKeyPressData;
 	HANDLE inputHandle;
 	HANDLE outputHandle;
 };
