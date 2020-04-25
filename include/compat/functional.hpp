@@ -11,10 +11,4 @@ auto bind_front(Fn&& fn, Args&& ...boundArgs) noexcept {
 	};
 }
 
-
-template<class Arg>
-auto add(Arg&& arg) noexcept {
-	return bind_front(std::plus<>{}, FORWARD(arg));
-}
-
 #endif // RLRPG_COMPAT_FUNCTIONAL_HPP

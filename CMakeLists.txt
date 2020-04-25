@@ -26,6 +26,7 @@ add_executable(RLRPG
         include/termlib/termlib.hpp
         include/termlib/vec2.hpp
         include/meta/check.hpp
+		include/utils/functional.hpp
         include/compat/functional.hpp
         include/compat/type_traits.hpp
         include/items/ammo.hpp

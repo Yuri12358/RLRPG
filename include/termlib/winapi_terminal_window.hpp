@@ -3,7 +3,7 @@
 
 #include"abstract_terminal_window.hpp"
 
-#include"compat/functional.hpp"
+#include"utils/functional.hpp"
 #include"compat/type_traits.hpp"
 
 #include<windows.h>
@@ -32,7 +32,7 @@ public:
     }
 
     void put(char ch) override {
-		std::putchar(ch);
+		WriteConsole(outputHandle, &ch, 1, nullptr, nullptr);
     }
 
     void display() override {
@@ -42,17 +42,15 @@ public:
     tl::optional<char> getChar(int timeoutMillis = -1) override {
 		return lastKeyPressData.map_or_else(
 			bind_front(&WinAPITerminalWindow::extractRepeatedKey, this),
-			bind_front(&WinAPITerminalWindow::readKeyFromConsole, this, timeoutAsMillis(timeoutMillis)));
+			bind_front(&WinAPITerminalWindow::readKeyFromConsole, this, timeoutAsMillis(timeoutMillis)))
+    		.map(bind_front(&WinAPITerminalWindow::echoInput, this));
     }
 
     void setTextStyle(TextStyle style) override {
     }
 
     void setEchoing(bool echoing) override {
-		DWORD consoleModeFlags;
-		GetConsoleMode(inputHandle, &consoleModeFlags);
-		setBits(consoleModeFlags, ENABLE_ECHO_INPUT, echoing);
-		SetConsoleMode(inputHandle, consoleModeFlags);
+		isEchoing = echoing;
     }
 
 	[[nodiscard]]
@@ -144,17 +142,8 @@ private:
 				return tl::nullopt;
 			}
 
-			INPUT_RECORD record;
-			DWORD read{};
-			ReadConsoleInput(inputHandle, &record, 1, &read);
-			if (read == 1) {
-				switch (record.EventType) {
-				case KEY_EVENT:
-					processKeyEvent(record.Event.KeyEvent);
-					return extractRepeatedKey(*lastKeyPressData);
-				default:
-					break;
-				}
+			if (auto const key = getPressedKey(); key.has_value()) {
+				return key;
 			}
 
 			now = Clock::now();
@@ -177,9 +166,26 @@ private:
 		return key;
 	}
 
-	void processKeyEvent(KEY_EVENT_RECORD const& event) {
+	void processKeyPress(KEY_EVENT_RECORD const& event) {
 		assert(!lastKeyPressData.has_value());
 		lastKeyPressData = LastKeyPressData{ event.uChar.AsciiChar, event.wRepeatCount };
+	}
+
+	static bool isNormalKeyPress(INPUT_RECORD const& record) noexcept {
+		return record.EventType == KEY_EVENT
+			&& record.Event.KeyEvent.bKeyDown
+			&& record.Event.KeyEvent.uChar.AsciiChar != '\0';
+	}
+
+	tl::optional<char> getPressedKey() {
+		INPUT_RECORD record;
+		DWORD readCount{};
+		ReadConsoleInput(inputHandle, &record, 1, &readCount);
+		if (readCount == 1 && isNormalKeyPress(record)) {
+			processKeyPress(record.Event.KeyEvent);
+			return extractRepeatedKey(*lastKeyPressData);
+		}
+		return tl::nullopt;
 	}
 
 	static tl::optional<TimeoutInterval> timeoutAsMillis(int millis) noexcept {
@@ -198,9 +204,17 @@ private:
 		}
 	}
 
+	char echoInput(char input) noexcept {
+		if (isEchoing) {
+			put(input);
+		}
+		return input;
+	}
+
 	tl::optional<LastKeyPressData> lastKeyPressData;
 	HANDLE inputHandle;
 	HANDLE outputHandle;
+	bool isEchoing = false;
 };
 
 #endif // WINAPI_TERMINAL_WINDOW_HPP
