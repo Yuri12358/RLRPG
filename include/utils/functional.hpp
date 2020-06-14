@@ -5,7 +5,7 @@
 
 template<class Arg>
 auto add(Arg&& arg) noexcept {
-	return bind_front(std::plus<>{}, FORWARD(arg));
+    return bind_front(std::plus<>{}, FORWARD(arg));
 }
 
 #endif // RLRPG_UTILS_FUNCTIONAL_HPP

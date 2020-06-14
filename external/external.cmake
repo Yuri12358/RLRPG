@@ -9,7 +9,7 @@ if (NOT yaml-cpp_FOUND)
                     WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
     add_subdirectory(external/yaml-cpp)
 
-    set(RLRPG_YAML_TARGET yaml::yaml)
+    set(RLRPG_YAML_TARGET yaml-cpp::yaml-cpp)
 else()
     set(RLRPG_YAML_TARGET ${YAML_CPP_LIBRARIES})
 endif()

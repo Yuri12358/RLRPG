@@ -16,6 +16,7 @@
 #include<effolkronium/random.hpp>
 
 #include<numeric>
+#include<cctype>
 
 using namespace fmt::literals;
 using fmt::format;
