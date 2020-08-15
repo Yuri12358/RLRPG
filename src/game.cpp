@@ -15,6 +15,8 @@
 #include<yaml_file_cache.hpp>
 #include<yaml_unit_loader.hpp>
 #include<controls.hpp>
+#include<compat/algorithm.hpp>
+#include<compat/functional.hpp>
 
 #include<fmt/core.h>
 #include<fmt/printf.h>
@@ -611,8 +613,7 @@ void Game::readMap() {
 }
 
 ItemPile::iterator Game::findItemAt(Coord2i cell, std::string_view id) {
-    auto & pile = itemsMap[cell];
-    return std::find_if(begin(pile), end(pile), [id] (Ptr<Item> const & item) {
+    return compat::find_if(itemsMap[cell], [id] (Ptr<Item> const & item) {
         return item->id == id;
     });
 }
@@ -650,36 +651,21 @@ void Game::drop(Ptr<Item> item, Coord2i cell) {
 }
 
 Ptr<Item> Game::createItem(std::string const & id) {
-    {
-        auto it = foodTypes.find(id);
-        if (it != foodTypes.end())
-            return it->second->clone();
-    }
-    {
-        auto it = armorTypes.find(id);
-        if (it != armorTypes.end())
-            return it->second->clone();
-    }
-    {
-        auto it = ammoTypes.find(id);
-        if (it != ammoTypes.end())
-            return it->second->clone();
-    }
-    {
-        auto it = potionTypes.find(id);
-        if (it != potionTypes.end())
-            return it->second->clone();
-    }
-    {
-        auto it = scrollTypes.find(id);
-        if (it != scrollTypes.end())
-            return it->second->clone();
-    }
-    {
-        auto it = weaponTypes.find(id);
-        if (it != weaponTypes.end())
-            return it->second->clone();
-    }
-    return {};
+    auto tryFindIn = [&id] (auto const& types) {
+        return [&types, &id] () -> tl::optional<Ptr<Item>> { // adapter for `optional::or_else`: it requires a callable with no args
+            if (auto it = types.find(id); it != types.end()) {
+                return it->second->clone();
+            }
+            return {};
+        };
+    };
+
+    return tryFindIn(foodTypes)()
+        .or_else(tryFindIn(armorTypes))
+        .or_else(tryFindIn(ammoTypes))
+        .or_else(tryFindIn(potionTypes))
+        .or_else(tryFindIn(scrollTypes))
+        .or_else(tryFindIn(weaponTypes))
+        .value_or(nullptr);
 }
 

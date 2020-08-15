@@ -43,7 +43,7 @@ namespace YAML {
 using ItemPile = std::list<Ptr<Item>>;
 
 namespace detail {
-    template<class T, meta::Check<IsClonable<T>> = meta::Checked>
+    template<class T, REQUIRES(IsClonable<T>)>
     Ptr<T> cloneAny(Registry<Ptr<T>> const & reg) {
         return effolkronium::random_static::get(reg)->second->clone();
     }
@@ -156,7 +156,7 @@ private:
     ItemPile::iterator findItemAt(Coord2i cell, std::string_view id);
     bool randomlySetOnMap(Ptr<Item> item);
 
-    template<class ItemType, class Fn = decltype(&detail::cloneAny<ItemType>), meta::Check<detail::IsItemSelector<Fn, ItemType>> = meta::Checked>
+    template<class ItemType, class Fn = decltype(&detail::cloneAny<ItemType>), REQUIRES(detail::IsItemSelector<Fn, ItemType>)>
     void randomlySelectAndSetOnMap(Registry<Ptr<ItemType>> const & types, int n, Fn const & selector = &detail::cloneAny<ItemType>) {
         for (int i = 0; i < n; ++i) {
             auto selected = selector(types);

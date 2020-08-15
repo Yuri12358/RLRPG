@@ -31,7 +31,7 @@ namespace reg {
     template<class T, class ID = DefaultIDType>
     using CopySelectorSig =     T         (Registry<T, ID> const &);
 
-    template<class T, class ID = DefaultIDType, meta::Check<IsClonable<T>> = meta::Checked>
+    template<class T, class ID = DefaultIDType, REQUIRES(IsClonable<T>)>
     using CloneSelectorSig =    T         (Registry<T, ID> const &);
 
     template<class T, class ID = DefaultIDType>
@@ -52,7 +52,7 @@ namespace reg {
     template<class T, class ID = DefaultIDType>
     using MoveSelector = std::function<MoveSelectorSig<T, ID>>;
 
-    template<class T, class ID = DefaultIDType, meta::Check<IsClonable<T>> = meta::Checked>
+    template<class T, class ID = DefaultIDType, REQUIRES(IsClonable<T>)>
     using CloneSelector = std::function<CloneSelectorSig<T, ID>>;
 
     ////////////////////
@@ -83,7 +83,7 @@ namespace reg {
     }
 
     // CloneSelector
-    template<class T, class ID = DefaultIDType, meta::Check<IsClonable<T>> = meta::Checked>
+    template<class T, class ID = DefaultIDType, REQUIRES(IsClonable<T>)>
     T pickAny(Registry<T, ID> && reg) {
         return effolkronium::random_static::get(reg)->second.clone();
     }

@@ -9,6 +9,7 @@
 #include<items/ammo.hpp>
 #include<items/potion.hpp>
 #include<items/scroll.hpp>
+#include<compat/algorithm.hpp>
 
 #include<fmt/core.h>
 #include<fmt/printf.h>
@@ -22,7 +23,7 @@ using fmt::format;
 using Random = effolkronium::random_static;
 
 namespace {
-    bool byInventoryID(Item const* lhs, Item const* rhs) noexcept {
+    bool compareByInventoryID(Item const* lhs, Item const* rhs) noexcept {
         return lhs->inventorySymbol < rhs->inventorySymbol;
     }
 
@@ -36,9 +37,15 @@ namespace {
         return tl::nullopt;
     }
 
-    auto itemTypeIs(Item::Type type) {
+    auto searchByItemType(Item::Type type) {
         return [type] (Item const& item) {
             return item.getType() == type;
+        };
+    }
+
+    auto searchByInventoryID(char id) {
+        return [id] (Item const& item) {
+            return item.inventorySymbol == id;
         };
     }
 
@@ -66,6 +73,17 @@ namespace {
             item.showMdf = true;
         }
     }
+
+    template<class Fn1, class Fn2>
+    auto compose(Fn1&& fn1, Fn2&& fn2) {
+        return [fn1 = std::forward<Fn1>(fn1), fn2 = std::forward<Fn2>(fn2)] (auto&& x) -> decltype(auto) {
+            return fn1(fn2(std::forward<decltype(x)>(x)));
+        };
+    }
+
+    auto const deref = [] (auto* ptr) -> auto& {
+        return *ptr;
+    };
 }
 
 int Hero::getLevelUpXP() const {
@@ -126,7 +144,7 @@ std::pair<Hero::SelectStatus, char> Hero::selectOneFromInventory(std::string_vie
     if (items.empty())
         return { NothingToSelect, 0 };
 
-    std::sort(items.begin(), items.end(), byInventoryID);
+    compat::sort(items, compareByInventoryID);
 
     printList(title, items,
             formatters::LetterNumberingByInventoryID{},
@@ -137,9 +155,9 @@ std::pair<Hero::SelectStatus, char> Hero::selectOneFromInventory(std::string_vie
         char const choice = g_game.getReader().readChar();
         if (choice == '\033')
             return { Cancelled, 0 };
-        for (Item const * item : items)
-            if (item->inventorySymbol == choice)
-                return { Success, choice };
+        if (compat::any_of(items, compose(searchByInventoryID(choice), deref))) {
+            return { Success, choice };
+        }
     }
 }
 
@@ -151,7 +169,7 @@ std::pair<Hero::SelectStatus, std::vector<char>> Hero::selectMultipleFromInvento
     if (items.empty())
         return { NothingToSelect, {} };
 
-    std::sort(items.begin(), items.end(), byInventoryID);
+    compat::sort(items, compareByInventoryID);
 
     std::vector<bool> selected(items.size());
 
@@ -226,10 +244,9 @@ std::pair<Hero::SelectStatus, std::vector<int>> Hero::selectMultipleFromList(std
 }
 
 bool Hero::isMapInInventory() const {
-    for (auto const & entry : inventory)
-        if (entry.second->id == "map")
-            return true;
-    return false;
+    return compat::any_of(inventory, [] (auto const& entry) {
+        return entry.second->id == "map";
+    });
 }
 
 void Hero::pickUp() {
@@ -339,7 +356,7 @@ void Hero::eat(Food const& food) {
 }
 
 void Hero::eat() {
-    auto [status, choice] = selectOneFromInventory("What do you want to eat?", itemTypeIs(Item::Type::Food));
+    auto [status, choice] = selectOneFromInventory("What do you want to eat?", searchByItemType(Item::Type::Food));
 
     switch (status) {
         case NothingToSelect:
@@ -577,7 +594,7 @@ void Hero::showInventory() {
     }
     auto list = inventory.filter(always(true));
 
-    std::sort(list.begin(), list.end(), byInventoryID);
+    compat::sort(list, compareByInventoryID);
 
     printList("Here is your inventory.", list,
             formatters::LetterNumberingByInventoryID{},
@@ -587,7 +604,7 @@ void Hero::showInventory() {
 }
 
 void Hero::wearArmor() {
-    auto [status, choice] = selectOneFromInventory("What do you want to wear?", itemTypeIs(Item::Type::Armor));
+    auto [status, choice] = selectOneFromInventory("What do you want to wear?", searchByItemType(Item::Type::Armor));
     switch (status) {
         case NothingToSelect:
             g_game.addMessage("You don't have anything to wear.");
@@ -644,7 +661,7 @@ void Hero::dropItems() {
 }
 
 void Hero::wieldWeapon() {
-    auto [status, itemID] = selectOneFromInventory("What do you want to wield?", itemTypeIs(Item::Type::Weapon));
+    auto [status, itemID] = selectOneFromInventory("What do you want to wield?", searchByItemType(Item::Type::Weapon));
 
     switch (status) {
         case NothingToSelect:
@@ -728,7 +745,7 @@ void Hero::throwItem() {
 }
 
 void Hero::drinkPotion() {
-    auto [status, itemID] = selectOneFromInventory("What do you want to drink?", itemTypeIs(Item::Type::Potion));
+    auto [status, itemID] = selectOneFromInventory("What do you want to drink?", searchByItemType(Item::Type::Potion));
 
     switch (status) {
         case NothingToSelect:
@@ -788,7 +805,7 @@ void Hero::consumeFromInventory(Item& item, int count) {
 }
 
 void Hero::readScroll() {
-    auto [status, itemID] = selectOneFromInventory("What do you want to read?", itemTypeIs(Item::Type::Scroll));
+    auto [status, itemID] = selectOneFromInventory("What do you want to read?", searchByItemType(Item::Type::Scroll));
 
     switch (status) {
         case NothingToSelect:

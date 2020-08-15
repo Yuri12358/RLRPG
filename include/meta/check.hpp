@@ -4,10 +4,10 @@
 #include<type_traits>
 
 namespace meta {
-    enum CheckResult { Checked };
-
     template<bool Cond>
-    using Check = std::enable_if_t<Cond, CheckResult>;
+    using Check = std::enable_if_t<Cond, int>;
 };
+
+#define REQUIRES(...) meta::Check<__VA_ARGS__> = 0
 
 #endif // RLRPG_META_CHECK_HPP

@@ -22,6 +22,12 @@ class InventoryIteratorImpl {
     InventoryIteratorImpl(UnderlyingIter iter): iter(iter) {}
 
 public:
+    using value_type = ValueType;
+    using iterator_category = std::forward_iterator_tag;
+    using reference = value_type&;
+    using pointer = value_type*;
+    using difference_type = std::ptrdiff_t;
+
     ValueType operator *() const {
         return std::make_pair(iter->first, iter->second.get());
     }
@@ -29,7 +35,6 @@ public:
     ValueType * operator ->() const {
         value = std::make_pair(iter->first, iter->second.get());
         return &value;
-        //return std::make_pair<*iter->second;
     }
 
     InventoryIteratorImpl & operator ++() {
