@@ -146,6 +146,9 @@ private:
     void loadData();
 
     void setItems();
+    void spawnHero();
+    void spawnEnemies();
+    void spawnEnemy();
     void spawnUnits();
     void setRandomPotionEffects();
 

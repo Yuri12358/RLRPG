@@ -429,29 +429,40 @@ void Game::setItems() {
     randomlySelectAndSetOnMap(potionTypes, Potion::COUNT);
 }
 
-void Game::spawnUnits() {
-    for (int i = 0; i < 1; i++) {
+void Game::spawnHero() {
+    while (true) {
         Coord2i pos{ Random::get(0, LEVEL_COLS - 1), Random::get(0, LEVEL_ROWS - 1) };
         if (levelData[pos] == 1 and not unitsMap[pos]) {
             auto hero = heroTemplate->clone();
             this->hero = hero.get();
             this->hero->pos = pos;
             unitsMap[pos] = std::move(hero);
-            break;
-        } else {
-            i--;
+            return;
         }
     }
-    for (int i = 0; i < ENEMIESCOUNT; i++) {
+}
+
+void Game::spawnEnemy() {
+    while (true) {
         Coord2i pos{ Random::get(0, LEVEL_COLS - 1), Random::get(0, LEVEL_ROWS - 1) };
         if (levelData[pos] == 1 and not unitsMap[pos]) {
             auto enemy = detail::cloneAny(enemyTypes);
             enemy->pos = pos;
             unitsMap[pos] = std::move(enemy);
-        } else {
-            i--;
+            return;
         }
     }
+}
+
+void Game::spawnEnemies() {
+    for (int i = 0; i < ENEMIESCOUNT; i++) {
+        spawnEnemy();
+    }
+}
+
+void Game::spawnUnits() {
+    spawnHero();
+    spawnEnemies();
 }
 
 void Game::clearBuffers() {
