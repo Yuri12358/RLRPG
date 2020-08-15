@@ -623,12 +623,6 @@ void Game::readMap() {
     });
 }
 
-ItemPile::iterator Game::findItemAt(Coord2i cell, std::string_view id) {
-    return compat::find_if(itemsMap[cell], [id] (Ptr<Item> const & item) {
-        return item->id == id;
-    });
-}
-
 bool Game::randomlySetOnMap(Ptr<Item> item) {
     int const attemts = 32;
 
@@ -646,19 +640,10 @@ bool Game::randomlySetOnMap(Ptr<Item> item) {
 }
 
 void Game::drop(Ptr<Item> item, Coord2i cell) {
-    if (g_game.level()[cell] == 2)
-        throw std::logic_error("Trying to drop an item in a wall");
-    if (not item)
-        return;
-    item->pos = cell;
-    if (item->isStackable) {
-        auto it = findItemAt(cell, item->id);
-        if (it != end(itemsMap[cell])) {
-            (*it)->count += item->count;
-            return;
-        }
-    }
-    itemsMap[cell].push_back(std::move(item));
+    assert(levelData[cell] != 2);
+    assert(item != nullptr);
+
+    itemsMap.drop(std::move(item), cell);
 }
 
 Ptr<Item> Game::createItem(std::string const & id) {
