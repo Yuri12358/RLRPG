@@ -732,7 +732,7 @@ void Hero::drinkPotion() {
         case Potion::Teleport:
             while (true) {
                 Coord2i pos = { Random::get(0, LEVEL_COLS - 1), Random::get(0, LEVEL_ROWS - 1) };
-                if (g_game.level()[pos] != 2 and not g_game.getUnitsMap()[pos]) {
+                if (g_game.level()[pos] != 2 and not g_game.getUnitMap()[pos]) {
                     setTo(pos);
                     break;
                 }
@@ -825,7 +825,7 @@ void Hero::throwAnimated(Ptr<Item> item, Direction direction) {
         if (g_game.level()[cell] == 2)
             break;
 
-        auto & unitsMap = g_game.getUnitsMap();
+        auto & unitsMap = g_game.getUnitMap();
         if (unitsMap[cell]) {
             dealDamageToUnitAt(cell, item->getTotalWeight() / 2);
             break;
@@ -841,18 +841,16 @@ void Hero::throwAnimated(Ptr<Item> item, Direction direction) {
 }
 
 void Hero::killUnit(Unit& unit) {
-    unit.dropInventory();
-    
     if (unit.getType() == Unit::Type::Enemy) {
         auto& enemy = dynamic_cast<Enemy&>(unit);
         xp += enemy.xpCost;
     }
 
-    g_game.getUnitsMap()[unit.pos].reset();
+    g_game.getUnitMap().killUnit(unit);
 }
 
 void Hero::dealDamageToUnitAt(Coord2i cell, int damage) {
-    auto& unitsMap = g_game.getUnitsMap();
+    auto& unitsMap = g_game.getUnitMap();
 
     assert(unitsMap[cell] != nullptr);
 
@@ -895,7 +893,7 @@ void Hero::shoot() {
         if (g_game.level()[cell] == 2)
             break;
 
-        if (g_game.getUnitsMap()[cell]) {
+        if (g_game.getUnitMap()[cell]) {
             dealDamageToUnitAt(cell, bulletPower - i / 3);
         }
         g_game.getRenderer()
@@ -955,7 +953,7 @@ void Hero::moveTo(Coord2i cell) {
     if (not level.isIndex(cell))
         return;
     if (level[cell] != 2 or canMoveThroughWalls) {
-        auto const & unitsMap = g_game.getUnitsMap();
+        auto const & unitsMap = g_game.getUnitMap();
         if (unitsMap[cell] and unitsMap[cell]->getType() == Unit::Type::Enemy) {
             if (weapon != nullptr) {
                 dealDamageToUnitAt(cell, calculateMeleeDamage());

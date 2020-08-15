@@ -92,11 +92,12 @@ bool Unit::canSee(Coord2i cell) const {
 }
 
 void Unit::setTo(Coord2i cell) {
-    auto & unitsMap = g_game.getUnitsMap();
-    if (g_game.level()[cell] == 2 or unitsMap[cell] or pos == cell)
+    auto& unitMap = g_game.getUnitMap();
+    if (g_game.level()[cell] == 2 or unitMap[cell] or pos == cell)
         return;
 
-    unitsMap[cell] = std::move(unitsMap[pos]);
+    unitMap.placeUnitAt(std::move(unitMap[pos]), cell);
+    unitMap[cell] = std::move(unitMap[pos]);
     pos = cell;
 }
 
