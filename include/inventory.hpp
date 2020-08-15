@@ -8,6 +8,8 @@
 #include<unordered_map>
 #include<variant>
 #include<memory>
+#include<vector>
+#include<functional>
 
 class Item;
 
@@ -88,6 +90,28 @@ public:
     InventoryIterator      end();
     ConstInventoryIterator end()  const;
     ConstInventoryIterator cend() const;
+
+    template<class Pred>
+    std::vector<Item const*> filter(Pred&& p) const {
+        std::vector<Item const*> matched;
+        for (auto const& [id, item] : items) {
+            if (std::invoke(p, *item)) {
+                matched.push_back(item.get());
+            }
+        }
+        return matched;
+    }
+
+    template<class Pred>
+    std::vector<Item*> filter(Pred& p) {
+        std::vector<Item*> matched;
+        for (auto const& [id, item] : items) {
+            if (std::invoke(p, *item)) {
+                matched.push_back(item.get());
+            }
+        }
+        return matched;
+    }
 
 private:
     std::unordered_map<char, Ptr<Item>> items;

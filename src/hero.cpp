@@ -21,6 +21,53 @@ using namespace fmt::literals;
 using fmt::format;
 using Random = effolkronium::random_static;
 
+namespace {
+    bool byInventoryID(Item const* lhs, Item const* rhs) noexcept {
+        return lhs->inventorySymbol < rhs->inventorySymbol;
+    }
+
+    tl::optional<int> idToIndex(char id) {
+        if (std::islower(id)) {
+            return id - 'a';
+        }
+        if (std::isupper(id)) {
+            return id - 'A' + 26;
+        }
+        return tl::nullopt;
+    }
+
+    auto itemTypeIs(Item::Type type) {
+        return [type] (Item const& item) {
+            return item.getType() == type;
+        };
+    }
+
+    template<class T>
+    auto always(T&& t) {
+        return [t = std::forward<T>(t)] (auto&&) {
+            return t;
+        };
+    }
+
+    bool needsIdentification(Item const & item) {
+        if (item.getType() == Item::Type::Potion) {
+            if (not g_game.isPotionKnown(item.id))
+                return true;
+        } else if (not item.showMdf) {
+            return true;
+        }
+        return false;
+    }
+
+    void markAsIdentified(Item& item) {
+        if (item.getType() == Item::Type::Potion) {
+            g_game.markPotionAsKnown(item.id);
+        } else {
+            item.showMdf = true;
+        }
+    }
+}
+
 int Hero::getLevelUpXP() const {
     return level * level + 4;
 }
@@ -74,17 +121,12 @@ void printList(std::string_view title, std::vector<Item const *> const & items, 
 }
 
 std::pair<Hero::SelectStatus, char> Hero::selectOneFromInventory(std::string_view title, std::function<bool(Item const &)> filter) const {
-    std::vector<Item const *> items;
-    for (auto const & entry : inventory)
-        if (filter(*entry.second))
-            items.push_back(entry.second);
+    auto items = inventory.filter(filter);
 
     if (items.empty())
         return { NothingToSelect, 0 };
 
-    std::sort(items.begin(), items.end(), [] (Item const * a, Item const * b) {
-        return a->inventorySymbol < b->inventorySymbol;
-    });
+    std::sort(items.begin(), items.end(), byInventoryID);
 
     printList(title, items,
             formatters::LetterNumberingByInventoryID{},
@@ -92,7 +134,7 @@ std::pair<Hero::SelectStatus, char> Hero::selectOneFromInventory(std::string_vie
             formatters::WithEquippedStatus{ weapon, armor });
 
     while (true) {
-        char choice = g_game.getReader().readChar();
+        char const choice = g_game.getReader().readChar();
         if (choice == '\033')
             return { Cancelled, 0 };
         for (Item const * item : items)
@@ -104,17 +146,12 @@ std::pair<Hero::SelectStatus, char> Hero::selectOneFromInventory(std::string_vie
 std::pair<Hero::SelectStatus, std::vector<char>> Hero::selectMultipleFromInventory(
         std::string_view title,
         std::function<bool(Item const &)> filter) const {
-    std::vector<Item const *> items;
-    for (auto const & entry : inventory)
-        if (filter(*entry.second))
-            items.push_back(entry.second);
+    auto items = inventory.filter(filter);
 
     if (items.empty())
         return { NothingToSelect, {} };
 
-    std::sort(items.begin(), items.end(), [] (Item const * a, Item const * b) {
-        return a->inventorySymbol < b->inventorySymbol;
-    });
+    std::sort(items.begin(), items.end(), byInventoryID);
 
     std::vector<bool> selected(items.size());
 
@@ -153,11 +190,10 @@ std::pair<Hero::SelectStatus, int> Hero::selectOneFromList(std::string_view titl
         char choice = g_game.getReader().readChar();
         if (choice == '\033')
             return { Cancelled, 0 };
-        if (not std::isalpha(choice))
-            continue;
-        int index = std::islower(choice) ? choice - 'a' : choice - 'A' + 26;
-        if (index < items.size())
-            return { Success, index };
+
+        auto const index = idToIndex(choice);
+        if (index.has_value() and *index < items.size())
+            return { Success, *index };
     }
 }
 
@@ -183,11 +219,9 @@ std::pair<Hero::SelectStatus, std::vector<int>> Hero::selectMultipleFromList(std
                     selectedIndices.push_back(i);
             return { Success, std::move(selectedIndices) };
         }
-        if (not std::isalpha(choice))
-            continue;
-        int index = std::islower(choice) ? choice - 'a' : choice - 'A' + 26;
-        if (index < items.size())
-            selected[index] = not selected[index];
+        auto const index = idToIndex(choice);
+        if (index.has_value() and *index < items.size())
+            selected[*index] = not selected[*index];
     }
 }
 
@@ -290,10 +324,23 @@ void Hero::clearRightPane() const {
     }
 }
 
+float Hero::calculateRottenFoodProbability(Food const&) const {
+    return 1.f / luck;
+}
+
+void Hero::eat(Food const& food) {
+    if (Random::get<bool>(calculateRottenFoodProbability(food))) {
+        hunger += food.nutritionalValue / 3;
+        health --;
+        g_game.addMessage("Fuck! This food was rotten!");
+    } else {
+        hunger += food.nutritionalValue;
+    }
+}
+
 void Hero::eat() {
-    auto [status, choice] = selectOneFromInventory("What do you want to eat?", [] (Item const & item) {
-        return item.getType() == Item::Type::Food;
-    });
+    auto [status, choice] = selectOneFromInventory("What do you want to eat?", itemTypeIs(Item::Type::Food));
+
     switch (status) {
         case NothingToSelect:
             g_game.addMessage("You don't have anything to eat.");
@@ -305,19 +352,55 @@ void Hero::eat() {
         default:break;
     }
 
-    auto & item = inventory[choice];
-    float rottenProbability = 1.f / luck;
-    if (Random::get<bool>(rottenProbability)) {
-        hunger += dynamic_cast<Food &>(item).nutritionalValue / 3;
-        health --;
-        g_game.addMessage("Fuck! This food was rotten!");
-    } else {
-        hunger += dynamic_cast<Food &>(item).nutritionalValue;
-    }
+    auto& item = inventory[choice];
+    eat(dynamic_cast<Food&>(item));
+
     if (item.count == 1) {
         inventory.remove(choice);
     } else {
         item.count--;
+    }
+}
+
+void Hero::scanCheat() {
+    char hv = g_game.getReader().readChar();
+
+    if (hv == 'h') {
+        if (g_game.getReader().readChar() == 'e') {
+            if (g_game.getReader().readChar() == 'a') {
+                if (g_game.getReader().readChar() == 'l') {
+                    hunger = 3000;
+                    health = maxHealth * 100;
+                }
+            }
+        }
+    }
+
+    if (hv == 'w') {
+        if (g_game.getReader().readChar() == 'a') {
+            if (g_game.getReader().readChar() == 'l') {
+                if (g_game.getReader().readChar() == 'l') {
+                    if (g_game.getReader().readChar() == 's') {
+                        canMoveThroughWalls = true;
+                    }
+                }
+            }
+        }
+    } else if (hv == 'd') {
+        if (g_game.getReader().readChar() == 's') {
+            if (g_game.getReader().readChar() == 'c') {
+                canMoveThroughWalls = false;
+            }
+        }
+    } else if (hv == 'k') {
+        if (g_game.getReader().readChar() == 'i') {
+            if (g_game.getReader().readChar() == 'l') {
+                if (g_game.getReader().readChar() == 'l') {
+                    health -= (health * 2) / 3;
+                    g_game.addMessage("Ouch!");
+                }
+            }
+        }
     }
 }
 
@@ -380,50 +463,9 @@ void Hero::processInput(char inp) {
         case CONTROL_READ:
             readScroll();
             break;
-        case '\\': {
-            char hv = g_game.getReader().readChar();
-
-            if (hv == 'h') {
-                if (g_game.getReader().readChar() == 'e') {
-                    if (g_game.getReader().readChar() == 'a') {
-                        if (g_game.getReader().readChar() == 'l') {
-                            hunger = 3000;
-                            health = maxHealth * 100;
-                        }
-                    }
-                }
-            }
-
-            if (hv == 'w') {
-                if (g_game.getReader().readChar() == 'a') {
-                    if (g_game.getReader().readChar() == 'l') {
-                        if (g_game.getReader().readChar() == 'l') {
-                            if (g_game.getReader().readChar() == 's') {
-                                canMoveThroughWalls = true;
-                            }
-                        }
-                    }
-                }
-            } else if (hv == 'd') {
-                if (g_game.getReader().readChar() == 's') {
-                    if (g_game.getReader().readChar() == 'c') {
-                        canMoveThroughWalls = false;
-                    }
-                } else {
-                    //g_game.getItemsMap().at(1, 1).push_back(g_game.getFoodTypes()[0]->clone());
-                }
-            } else if (hv == 'k') {
-                if (g_game.getReader().readChar() == 'i') {
-                    if (g_game.getReader().readChar() == 'l') {
-                        if (g_game.getReader().readChar() == 'l') {
-                            health -= (health * 2) / 3;
-                            g_game.addMessage("Ouch!");
-                        }
-                    }
-                }
-            }
+        case '\\':
+            scanCheat();
             break;
-        }
         default:
             break;
     }
@@ -533,13 +575,9 @@ void Hero::showInventory() {
         g_game.addMessage("Your inventory is empty");
         return;
     }
-    std::vector<Item const *> list;
-    for (auto const & entry : inventory)
-        list.push_back(entry.second);
+    auto list = inventory.filter(always(true));
 
-    std::sort(list.begin(), list.end(), [] (Item const * a, Item const * b) {
-        return a->inventorySymbol < b->inventorySymbol;
-    });
+    std::sort(list.begin(), list.end(), byInventoryID);
 
     printList("Here is your inventory.", list,
             formatters::LetterNumberingByInventoryID{},
@@ -549,7 +587,7 @@ void Hero::showInventory() {
 }
 
 void Hero::wearArmor() {
-    auto [status, choice] = selectOneFromInventory("What do you want to wear?");
+    auto [status, choice] = selectOneFromInventory("What do you want to wear?", itemTypeIs(Item::Type::Armor));
     switch (status) {
         case NothingToSelect:
             g_game.addMessage("You don't have anything to wear.");
@@ -606,9 +644,8 @@ void Hero::dropItems() {
 }
 
 void Hero::wieldWeapon() {
-    auto [status, itemID] = selectOneFromInventory("What do you want to wield?", [] (Item const & item) {
-        return item.getType() == Item::Type::Weapon;
-    });
+    auto [status, itemID] = selectOneFromInventory("What do you want to wield?", itemTypeIs(Item::Type::Weapon));
+
     switch (status) {
         case NothingToSelect:
             g_game.addMessage("You don't have anything to wield.");
@@ -691,9 +728,8 @@ void Hero::throwItem() {
 }
 
 void Hero::drinkPotion() {
-    auto [status, itemID] = selectOneFromInventory("What do you want to drink?", [] (Item const & item) {
-        return item.getType() == Item::Type::Potion;
-    });
+    auto [status, itemID] = selectOneFromInventory("What do you want to drink?", itemTypeIs(Item::Type::Potion));
+
     switch (status) {
         case NothingToSelect:
             g_game.addMessage("You don't have anything to drink.");
@@ -739,17 +775,21 @@ void Hero::drinkPotion() {
     }
     g_game.markPotionAsKnown(potion.id);
 
-    if (item.count == 1) {
-        inventory.remove(itemID);
-    } else {
-        --item.count;
+    consumeFromInventory(item);
+}
+
+void Hero::consumeFromInventory(Item& item, int count) {
+    assert(item.count >= count);
+
+    item.count -= count;
+    if (item.count == 0) {
+        inventory.remove(item.inventorySymbol);
     }
 }
 
 void Hero::readScroll() {
-    auto [status, itemID] = selectOneFromInventory("What do you want to read?", [] (Item const & item) {
-        return item.getType() == Item::Type::Scroll;
-    });
+    auto [status, itemID] = selectOneFromInventory("What do you want to read?", itemTypeIs(Item::Type::Scroll));
+
     switch (status) {
         case NothingToSelect:
             g_game.addMessage("You don't have anything to read.");
@@ -768,15 +808,7 @@ void Hero::readScroll() {
             g_game.addMessage("You wrote this map. Why you read it, I don't know.");
             break;
         case Scroll::Identify: {
-            auto [status, chToApply] = selectOneFromInventory("What do you want to identify?", [] (Item const & item) {
-                if (item.getType() == Item::Type::Potion) {
-                    if (not g_game.isPotionKnown(item.id))
-                        return true;
-                } else if (not item.showMdf){
-                    return true;
-                }
-                return false;
-            });
+            auto [status, chToApply] = selectOneFromInventory("What do you want to identify?", needsIdentification);
             switch (status) {
                 case NothingToSelect:
                     g_game.addMessage("You have nothing to identify.");
@@ -790,17 +822,9 @@ void Hero::readScroll() {
             }
 
             auto & item2 = inventory[chToApply];
-            if (item2.getType() == Item::Type::Potion) {
-                g_game.markPotionAsKnown(item2.id);
-            } else {
-                item2.showMdf = true;
-            }
+            markAsIdentified(item2);
 
-            if (item.count == 1) {
-                inventory.remove(itemID);
-            } else {
-                --item.count;
-            }
+            consumeFromInventory(item);
             break;
         }
         default:
@@ -808,11 +832,17 @@ void Hero::readScroll() {
     }
 }
 
+int Hero::calculateThrowDistance(Item const& item) const {
+    int const strength = 12;
+    return std::max(1, strength - item.getTotalWeight() / 3);
+}
+
 void Hero::throwAnimated(Ptr<Item> item, Direction direction) {
     int throwDist = 0;
     auto offset = toVec2i(direction);
     char sym = toChar(direction);
-    for (int i = 0; i < 12 - item->getTotalWeight() / 3; i++) {                        // 12 is "strength"
+    int const maxDist = calculateThrowDistance(*item);
+    for (int i = 0; i < maxDist; i++) {
         auto cell = pos + offset * (i + 1);
 
         if (g_game.level()[cell] == 2)
@@ -879,9 +909,10 @@ void Hero::shoot() {
     auto direction = *optdir;
     auto offset = toVec2i(direction);
     char sym = toChar(direction);
-    int bulletPower = weapon->cartridge.next().damage + weapon->damageBonus;
+    int bulletPower = weapon->getShootDamage();
+    int maxShootDistance = weapon->getShootDistance();
 
-    for (int i = 1; i < weapon->range + weapon->cartridge.next().range; i++) {
+    for (int i = 1; i < maxShootDistance; i++) {
         auto const cell = pos + offset * i;
 
         if (g_game.level()[cell] == 2)

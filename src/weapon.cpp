@@ -5,6 +5,20 @@
 #include<cassert>
 #include<memory>
 
+int Weapon::getShootDamage() const {
+    assert(isRanged);
+    assert(not cartridge.isEmpty());
+
+    return cartridge.isEmpty() ? 0 : damageBonus + cartridge.next().damage;
+}
+
+int Weapon::getShootDistance() const {
+    assert(isRanged);
+    assert(not cartridge.isEmpty());
+
+    return cartridge.isEmpty() ? 0 : range + cartridge.next().range;
+}
+
 Weapon::Cartridge::Cartridge(int capacity): capacity(capacity) {
     assert(capacity >= 0);
 }
@@ -41,16 +55,6 @@ Ptr<Ammo> Weapon::Cartridge::unloadOne() {
     return bullet;
 }
 
-Ammo & Weapon::Cartridge::next() {
-    assert(not isEmpty());
-    return *loaded.back();
-}
-
-Ammo const & Weapon::Cartridge::next() const {
-    assert(not isEmpty());
-    return *loaded.back();
-}
-
 Ammo const * Weapon::Cartridge::operator [](int ind) const {
     assert(ind >= 0 and ind < capacity);
     if (ind < loaded.size()) {
@@ -58,28 +62,3 @@ Ammo const * Weapon::Cartridge::operator [](int ind) const {
     }
     return nullptr;
 }
-
-auto Weapon::Cartridge::begin() const -> decltype(loaded.begin()) {
-    return loaded.begin();
-}
-
-auto Weapon::Cartridge::end() const -> decltype(loaded.end()) {
-    return loaded.end();
-}
-
-int Weapon::Cartridge::getCapacity() const {
-    return capacity;
-}
-
-int Weapon::Cartridge::getCurrSize() const {
-    return (int) loaded.size();
-}
-
-bool Weapon::Cartridge::isEmpty() const {
-    return loaded.empty();
-}
-
-bool Weapon::Cartridge::isFull() const {
-    return loaded.size() == capacity;
-}
-

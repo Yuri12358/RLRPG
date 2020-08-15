@@ -14,6 +14,8 @@
 
 using Random = effolkronium::random_static;
 
+class Food;
+
 class Hero
     : public Unit
     , public EnableClone<Hero>
@@ -64,6 +66,8 @@ private:
     void wieldWeapon();
     void wearArmor();
 
+    void scanCheat();
+
     enum SelectStatus {
         NothingToSelect,
         Cancelled,
@@ -82,6 +86,15 @@ private:
 
     std::pair<SelectStatus, std::vector<int>> selectMultipleFromList(std::string_view title, std::vector<Item const *> const & items) const;
 
+    /*
+    Requires:
+    - `item` is in inventory
+    - there is enough units of `item` to consume: `item.count >= count`
+    */
+    void consumeFromInventory(Item&, int count = 1);
+
+    void eat(Food const&);
+
     void killUnit(Unit& unit);
 
     /*
@@ -94,7 +107,10 @@ private:
     */
     int calculateMeleeDamage() const;
 
+    int calculateThrowDistance(Item const&) const;
+
     float calculateBreakProbability() const;
+    float calculateRottenFoodProbability(Food const&) const;
 
     /*
     Requires `weapon != nullptr`

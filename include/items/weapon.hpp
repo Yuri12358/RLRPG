@@ -5,6 +5,7 @@
 #include<ptr.hpp>
 #include<enable_clone.hpp>
 #include<vector>
+#include<cassert>
 
 class Ammo;
 
@@ -27,18 +28,41 @@ public:
 
         Ptr<Ammo> unloadOne();
 
-        Ammo const & next() const;
-        Ammo       & next();
+        Ammo& next() {
+            assert(not isEmpty());
+            return *loaded.back();
+        }
+
+        Ammo const& next() const {
+            assert(not isEmpty());
+            return *loaded.back();
+        }
 
         Ammo const * operator [](int ind) const;
 
-        auto begin() const -> decltype(loaded.begin());
-        auto end()   const -> decltype(loaded.end());
+        auto begin() const {
+            return loaded.begin();
+        }
 
-        int getCapacity() const;
-        int getCurrSize() const;
-        bool isEmpty() const;
-        bool isFull() const;
+        auto end() const {
+            return loaded.end();
+        }
+
+        int getCapacity() const {
+            return capacity;
+        }
+
+        int getCurrSize() const {
+            return static_cast<int>(loaded.size());
+        }
+
+        bool isEmpty() const {
+            return loaded.empty();
+        }
+
+        bool isFull() const {
+            return loaded.size() == capacity;
+        }
     };
 
     static int const COUNT = 25; /* JUST FOR !DEBUG!!*/
@@ -57,6 +81,9 @@ public:
     Ptr<Item> cloneItem() const override {
         return std::make_unique<Weapon>(*this);
     }
+
+    int getShootDamage() const;
+    int getShootDistance() const;
 };
 
 #endif // RLRPG_ITEMS_WEAPON_HPP
