@@ -8,6 +8,7 @@
 #include<meta/check.hpp>
 #include<ptr.hpp>
 #include<items_map.hpp>
+#include<unit_map.hpp>
 
 #include<effolkronium/random.hpp>
 
@@ -82,8 +83,8 @@ public:
     auto const & getItemsMap() const { return itemsMap; }
     auto       & getItemsMap()       { return itemsMap; }
 
-    auto const & getUnitsMap() const { return unitsMap; }
-    auto       & getUnitsMap()       { return unitsMap; }
+    auto const & getUnitMap() const { return unitMap; }
+    auto       & getUnitMap()       { return unitMap; }
 
     Registry<Ptr<Food>> const & getFoodTypes() const { return foodTypes; }
     Registry<Ptr<Food>>       & getFoodTypes()       { return foodTypes; }
@@ -184,7 +185,7 @@ private:
 
     Array2D<int, LEVEL_ROWS, LEVEL_COLS> levelData;
     ItemsMap itemsMap;
-    Array2D<Ptr<Unit>, LEVEL_ROWS, LEVEL_COLS> unitsMap;
+    UnitMap unitMap;
 
     Registry<Ptr<Food>> foodTypes;
     Registry<Ptr<Armor>> armorTypes;

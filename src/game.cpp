@@ -395,7 +395,7 @@ void Game::initialize() {
 }
 
 void Game::updateAI() {
-    unitsMap.forEach([&] (Ptr<Unit> & unit) {
+    unitMap.forEach([&] (Ptr<Unit> & unit) {
         if (not unit or unit->getType() != Unit::Type::Enemy)
             return;
 
@@ -432,11 +432,10 @@ void Game::setItems() {
 void Game::spawnHero() {
     while (true) {
         Coord2i pos{ Random::get(0, LEVEL_COLS - 1), Random::get(0, LEVEL_ROWS - 1) };
-        if (levelData[pos] == 1 and not unitsMap[pos]) {
+        if (levelData[pos] == 1 and not unitMap[pos]) {
             auto hero = heroTemplate->clone();
             this->hero = hero.get();
-            this->hero->pos = pos;
-            unitsMap[pos] = std::move(hero);
+            unitMap.placeUnitAt(std::move(hero), pos);
             return;
         }
     }
@@ -445,10 +444,8 @@ void Game::spawnHero() {
 void Game::spawnEnemy() {
     while (true) {
         Coord2i pos{ Random::get(0, LEVEL_COLS - 1), Random::get(0, LEVEL_ROWS - 1) };
-        if (levelData[pos] == 1 and not unitsMap[pos]) {
-            auto enemy = detail::cloneAny(enemyTypes);
-            enemy->pos = pos;
-            unitsMap[pos] = std::move(enemy);
+        if (levelData[pos] == 1 and not unitMap[pos]) {
+            unitMap.placeUnitAt(detail::cloneAny(enemyTypes), pos);
             return;
         }
     }
@@ -503,8 +500,8 @@ tl::optional<CellRenderData> Game::getRenderData(Coord2i cell) {
         return tl::nullopt;
 
     CellRenderData renderData;
-    if (unitsMap[cell]) {
-        renderData.unit = getRenderData(*unitsMap[cell]);
+    if (unitMap[cell]) {
+        renderData.unit = getRenderData(*unitMap[cell]);
     }
     if (itemsMap[cell].size() == 1) {
         renderData.item = getRenderData(*itemsMap[cell].front());
@@ -664,4 +661,3 @@ Ptr<Item> Game::createItem(std::string const & id) {
         .or_else(tryFindIn(weaponTypes))
         .value_or(nullptr);
 }
-

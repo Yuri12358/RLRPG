@@ -55,6 +55,7 @@ add_executable(RLRPG
         include/ptr.hpp
         include/registry.hpp
         include/render_data.hpp
+        include/unit_map.hpp
         include/units/enemy.hpp
         include/units/hero.hpp
         include/units/unit.hpp
@@ -73,6 +74,7 @@ add_executable(RLRPG
         src/log.cpp
         src/main.cpp
         src/potion.cpp
+        src/unit_map.cpp
         src/unit.cpp
         src/utils.cpp
         src/weapon.cpp

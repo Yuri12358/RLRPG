@@ -62,8 +62,8 @@ void Enemy::shoot() {
         if (g_game.level()[cell] == 2)
             break;
 
-        auto const & unitsMap = g_game.getUnitsMap();
-        if (unitsMap[cell] and unitsMap[cell]->getType() == Unit::Type::Hero) {
+        auto const & unitMap = g_game.getUnitMap();
+        if (unitMap[cell] and unitMap[cell]->getType() == Unit::Type::Hero) {
             g_game.getHero().dealDamage(ammo->damage + weapon->damageBonus);
             break;
         }
@@ -118,9 +118,9 @@ tl::optional<Coord2i> Enemy::searchForShortestPath(Coord2i to) const {
 
         for (auto dir : dirs) {
             auto tv = v + dir;
-            auto const & unitsMap = g_game.getUnitsMap();
-            if (unitsMap.isIndex(tv)
-                    and (not unitsMap[tv] or unitsMap[tv]->getType() == Unit::Type::Hero)
+            auto const & unitMap = g_game.getUnitMap();
+            if (unitMap.isIndex(tv)
+                    and (not unitMap[tv] or unitMap[tv]->getType() == Unit::Type::Hero)
                     and g_game.level()[tv] != 2 and used[tv] == 0) {
                 q.push(tv);
                 used[tv] = 1 + used[v];
@@ -149,13 +149,13 @@ void Enemy::moveTo(Coord2i cell) {
     if (g_game.level()[cell] == 2)
         throw std::logic_error("Trying to move an enemy into a wall");
 
-    auto const & unitsMap = g_game.getUnitsMap();
-    if (not unitsMap[cell]) {
+    auto const & unitMap = g_game.getUnitMap();
+    if (not unitMap[cell]) {
         setTo(cell);
         return;
     }
 
-    if (unitsMap[cell]->getType() == Unit::Type::Enemy or weapon == nullptr)
+    if (unitMap[cell]->getType() == Unit::Type::Enemy or weapon == nullptr)
         return;
 
     auto & hero = g_game.getHero();
@@ -166,8 +166,7 @@ void Enemy::moveTo(Coord2i cell) {
     }
 
     if (health <= 0) {
-        g_game.getUnitsMap()[pos].reset();
-        return;
+        g_game.getUnitMap().killUnit(*this);
     }
 }
 
@@ -199,7 +198,7 @@ void Enemy::updatePosition() {
 
     std::vector<Coord2i> visibleCells;
 
-    g_game.getUnitsMap().forEach([&] (Coord2i cell, Ptr<Unit> const & unit) {
+    g_game.getUnitMap().forEach([&] (Coord2i cell, Ptr<Unit> const & unit) {
         if (cell != pos and g_game.level()[cell] != 2 and not unit and canSee(cell)) {
             visibleCells.push_back(cell);
         }
