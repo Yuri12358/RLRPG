@@ -33,6 +33,9 @@ add_executable(RLRPG
         include/items/potion.hpp
         include/items/scroll.hpp
         include/items/weapon.hpp
+	include/compat/functional.hpp
+	include/compat/algorithm.hpp
+	include/compat/overloaded.hpp
         include/abstract_item_loader.hpp
         include/abstract_unit_loader.hpp
         include/array2d.hpp
