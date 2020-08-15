@@ -42,12 +42,14 @@ add_executable(RLRPG
         include/controls.hpp
         include/direction.hpp
         include/enable_clone.hpp
+        include/functional.hpp
         include/game.hpp
         include/gen_map.hpp
         include/inventory.hpp
         include/inventory.inl
         include/inventory_iterator.hpp
         include/item_list_formatters.hpp
+	include/items_map.hpp
         include/level.hpp
         include/log.hpp
         include/ptr.hpp
@@ -67,6 +69,7 @@ add_executable(RLRPG
         src/hero.cpp
         src/inventory.cpp
         src/item.cpp
+	src/items_map.cpp
         src/log.cpp
         src/main.cpp
         src/potion.cpp

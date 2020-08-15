@@ -10,6 +10,8 @@
 #include<items/potion.hpp>
 #include<items/scroll.hpp>
 #include<compat/algorithm.hpp>
+#include<functional.hpp>
+#include<items/helpers.hpp>
 
 #include<fmt/core.h>
 #include<fmt/printf.h>
@@ -23,38 +25,7 @@ using fmt::format;
 using Random = effolkronium::random_static;
 
 namespace {
-    bool compareByInventoryID(Item const* lhs, Item const* rhs) noexcept {
-        return lhs->inventorySymbol < rhs->inventorySymbol;
-    }
-
-    tl::optional<int> idToIndex(char id) {
-        if (std::islower(id)) {
-            return id - 'a';
-        }
-        if (std::isupper(id)) {
-            return id - 'A' + 26;
-        }
-        return tl::nullopt;
-    }
-
-    auto searchByItemType(Item::Type type) {
-        return [type] (Item const& item) {
-            return item.getType() == type;
-        };
-    }
-
-    auto searchByInventoryID(char id) {
-        return [id] (Item const& item) {
-            return item.inventorySymbol == id;
-        };
-    }
-
-    template<class T>
-    auto always(T&& t) {
-        return [t = std::forward<T>(t)] (auto&&) {
-            return t;
-        };
-    }
+    auto compareByPtrInventoryID = applyProjection(compareByInventoryID, deref);
 
     bool needsIdentification(Item const & item) {
         if (item.getType() == Item::Type::Potion) {
@@ -73,17 +44,6 @@ namespace {
             item.showMdf = true;
         }
     }
-
-    template<class Fn1, class Fn2>
-    auto compose(Fn1&& fn1, Fn2&& fn2) {
-        return [fn1 = std::forward<Fn1>(fn1), fn2 = std::forward<Fn2>(fn2)] (auto&& x) -> decltype(auto) {
-            return fn1(fn2(std::forward<decltype(x)>(x)));
-        };
-    }
-
-    auto const deref = [] (auto* ptr) -> auto& {
-        return *ptr;
-    };
 }
 
 int Hero::getLevelUpXP() const {
@@ -144,7 +104,7 @@ std::pair<Hero::SelectStatus, char> Hero::selectOneFromInventory(std::string_vie
     if (items.empty())
         return { NothingToSelect, 0 };
 
-    compat::sort(items, compareByInventoryID);
+    compat::sort(items, compareByPtrInventoryID);
 
     printList(title, items,
             formatters::LetterNumberingByInventoryID{},
@@ -169,7 +129,7 @@ std::pair<Hero::SelectStatus, std::vector<char>> Hero::selectMultipleFromInvento
     if (items.empty())
         return { NothingToSelect, {} };
 
-    compat::sort(items, compareByInventoryID);
+    compat::sort(items, compareByPtrInventoryID);
 
     std::vector<bool> selected(items.size());
 
@@ -592,9 +552,9 @@ void Hero::showInventory() {
         g_game.addMessage("Your inventory is empty");
         return;
     }
-    auto list = inventory.filter(always(true));
+    auto list = inventory.filter(alwaysReturn(true));
 
-    compat::sort(list, compareByInventoryID);
+    compat::sort(list, compareByPtrInventoryID);
 
     printList("Here is your inventory.", list,
             formatters::LetterNumberingByInventoryID{},

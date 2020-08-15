@@ -7,6 +7,7 @@
 #include<registry.hpp>
 #include<meta/check.hpp>
 #include<ptr.hpp>
+#include<items_map.hpp>
 
 #include<effolkronium/random.hpp>
 
@@ -39,8 +40,6 @@ class YAMLFileCache;
 namespace YAML {
     class Node;
 }
-
-using ItemPile = std::list<Ptr<Item>>;
 
 namespace detail {
     template<class T, REQUIRES(IsClonable<T>)>
@@ -113,6 +112,12 @@ public:
     void markPotionAsKnown(std::string const & id) { potionTypeKnown.at(id) = true; }
 
     void addMessage(std::string_view msg);
+
+    /*
+    Requires:
+    - `item != nullptr`
+    - `to` points to a valid cell with no wall on it
+    */
     void drop(Ptr<Item> item, Coord2i to);
 
 private:
@@ -156,7 +161,10 @@ private:
     void initField();
     void readMap();
 
-    ItemPile::iterator findItemAt(Coord2i cell, std::string_view id);
+    ItemPile::iterator findItemAt(Coord2i cell, std::string_view id) {
+        return itemsMap.findItemAt(cell, id);
+    }
+
     bool randomlySetOnMap(Ptr<Item> item);
 
     template<class ItemType, class Fn = decltype(&detail::cloneAny<ItemType>), REQUIRES(detail::IsItemSelector<Fn, ItemType>)>
@@ -175,7 +183,7 @@ private:
     Array2D<tl::optional<CellRenderData>, LEVEL_ROWS, LEVEL_COLS> cachedMap;
 
     Array2D<int, LEVEL_ROWS, LEVEL_COLS> levelData;
-    Array2D<ItemPile, LEVEL_ROWS, LEVEL_COLS> itemsMap;
+    ItemsMap itemsMap;
     Array2D<Ptr<Unit>, LEVEL_ROWS, LEVEL_COLS> unitsMap;
 
     Registry<Ptr<Food>> foodTypes;
