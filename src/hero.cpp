@@ -808,19 +808,6 @@ void Hero::readScroll() {
     }
 }
 
-void Hero::attackEnemy(Coord2i cell) {
-    auto & unitsMap = g_game.getUnitsMap();
-    auto & enemy = dynamic_cast<Enemy &>(*unitsMap[cell]);
-    if (weapon) {
-        enemy.dealDamage(weapon->damage);
-    }
-    if (enemy.health <= 0) {
-        enemy.dropInventory();
-        xp += enemy.xpCost;
-        unitsMap[cell].reset();
-    }
-}
-
 void Hero::throwAnimated(Ptr<Item> item, Direction direction) {
     int throwDist = 0;
     auto offset = toVec2i(direction);
@@ -833,13 +820,7 @@ void Hero::throwAnimated(Ptr<Item> item, Direction direction) {
 
         auto & unitsMap = g_game.getUnitsMap();
         if (unitsMap[cell]) {
-            unitsMap[cell]->dealDamage(item->getTotalWeight() / 2);
-            if (unitsMap[cell]->health <= 0) {
-                auto & enemy = dynamic_cast<Enemy &>(*unitsMap[cell]);
-                enemy.dropInventory();
-                xp += enemy.xpCost;
-                unitsMap[cell].reset();
-            }
+            dealDamageToUnitAt(cell, item->getTotalWeight() / 2);
             break;
         }
         g_game.getRenderer()
@@ -850,6 +831,29 @@ void Hero::throwAnimated(Ptr<Item> item, Direction direction) {
         sleep(DELAY);
     }
     g_game.drop(std::move(item), pos + offset * throwDist);
+}
+
+void Hero::killUnit(Unit& unit) {
+    unit.dropInventory();
+    
+    if (unit.getType() == Unit::Type::Enemy) {
+        auto& enemy = dynamic_cast<Enemy&>(unit);
+        xp += enemy.xpCost;
+    }
+
+    g_game.getUnitsMap()[unit.pos].reset();
+}
+
+void Hero::dealDamageToUnitAt(Coord2i cell, int damage) {
+    auto& unitsMap = g_game.getUnitsMap();
+
+    assert(unitsMap[cell] != nullptr);
+
+    auto& unit = *unitsMap[cell];
+    unit.dealDamage(damage);
+    if (unit.health <= 0) {
+        killUnit(unit);
+    }
 }
 
 void Hero::shoot() {
@@ -878,20 +882,13 @@ void Hero::shoot() {
     int bulletPower = weapon->cartridge.next().damage + weapon->damageBonus;
 
     for (int i = 1; i < weapon->range + weapon->cartridge.next().range; i++) {
-        auto cell = pos + offset * i;
+        auto const cell = pos + offset * i;
 
         if (g_game.level()[cell] == 2)
             break;
 
-        auto & unitsMap = g_game.getUnitsMap();
-        if (unitsMap[cell]) {
-            unitsMap[cell]->dealDamage(bulletPower - i / 3);
-            if (unitsMap[cell]->health <= 0) {
-                auto & enemy = dynamic_cast<Enemy &>(*unitsMap[cell]);
-                enemy.dropInventory();
-                xp += enemy.xpCost;
-                unitsMap[cell].reset();
-            }
+        if (g_game.getUnitsMap()[cell]) {
+            dealDamageToUnitAt(cell, bulletPower - i / 3);
         }
         g_game.getRenderer()
             .setCursorPosition(cell)
@@ -902,6 +899,49 @@ void Hero::shoot() {
     weapon->cartridge.unloadOne();
 }
 
+float Hero::calculateBreakProbability() const {
+    return (MAX_LUCK - luck) / 100.f;
+}
+
+void Hero::breakWeapon() {
+    assert(weapon != nullptr);
+
+    g_game.addMessage(format("You've broken your {}.", weapon->getName()));
+    char const weaponID = weapon->inventorySymbol;
+    unequipWeapon();
+    inventory.remove(weaponID);
+}
+
+void Hero::dig(Coord2i cell) {
+    assert(g_game.level().isIndex(cell));
+    assert(weapon != nullptr);
+    assert(weapon->canDig);
+
+    g_game.level()[cell] = 1;
+
+    if (Random::get<bool>(calculateBreakProbability())) {
+        breakWeapon();
+    }
+}
+
+void Hero::tryMoveInWall(Coord2i cell) {
+    assert(g_game.level().isIndex(cell));
+
+    if (weapon != nullptr and weapon->canDig) {
+        g_game.getRenderer()
+            .setCursorPosition(Coord2i{ LEVEL_COLS + 10, 0 })
+            .put("Do you want to dig this wall? [yn]");
+
+        char const inpChar = g_game.getReader().readChar();
+        if (std::tolower(inpChar) == 'y') {
+            dig(cell);
+            return;
+        }
+    }
+    g_game.addMessage("The wall is the way.");
+    g_game.skipUpdate();
+}
+
 void Hero::moveTo(Coord2i cell) {
     auto const & level = g_game.level();
     if (not level.isIndex(cell))
@@ -909,31 +949,22 @@ void Hero::moveTo(Coord2i cell) {
     if (level[cell] != 2 or canMoveThroughWalls) {
         auto const & unitsMap = g_game.getUnitsMap();
         if (unitsMap[cell] and unitsMap[cell]->getType() == Unit::Type::Enemy) {
-            attackEnemy(cell);
+            if (weapon != nullptr) {
+                dealDamageToUnitAt(cell, calculateMeleeDamage());
+            } else {
+                g_game.addMessage("You don't have any weapon wielded to attack!");
+                g_game.skipUpdate();
+            }
         } else if (not unitsMap[cell]) {
             setTo(cell);
         }
     } else if (level[cell] == 2) {
-        if (weapon != nullptr and weapon->canDig) {
-            g_game.getRenderer()
-                .setCursorPosition(Coord2i{ LEVEL_COLS + 10, 0 })
-                .put("Do you want to dig this wall? [yn]");
-
-            char inpChar = g_game.getReader().readChar();
-            if (inpChar == 'y' or inpChar == 'Y') {
-                g_game.level()[cell] = 1;
-                float breakProbability = (Hero::MAX_LUCK - luck) / 100.f;
-                if (Random::get<bool>(breakProbability)) {
-                    g_game.addMessage(format("You've broken your {}.", weapon->getName()));
-                    char weaponID = weapon->inventorySymbol;
-                    unequipWeapon();
-                    inventory.remove(weaponID);
-                }
-                return;
-            }
-        }
-        g_game.addMessage("The wall is the way.");
-        g_game.skipUpdate();
+        tryMoveInWall(cell);
     }
 }
 
+int Hero::calculateMeleeDamage() const {
+    assert(weapon != nullptr);
+
+    return weapon->damage;
+}

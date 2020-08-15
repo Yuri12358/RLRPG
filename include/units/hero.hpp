@@ -51,7 +51,6 @@ public:
     bool seenUpdated(Args && ... args) const { return seenMap.at(std::forward<Args>(args)...); }
 
 private:
-    void attackEnemy(Coord2i cell);
     void throwAnimated(Ptr<Item> item, Direction direction);
     void shoot();
     void eat();
@@ -83,7 +82,39 @@ private:
 
     std::pair<SelectStatus, std::vector<int>> selectMultipleFromList(std::string_view title, std::vector<Item const *> const & items) const;
 
+    void killUnit(Unit& unit);
+
+    /*
+    Requires a valid unit on the `cell`. Kills the unit if its health level drops below 0
+    */
+    void dealDamageToUnitAt(Coord2i cell, int damage);
+
+    /*
+    Requires `weapon != nullptr`
+    */
+    int calculateMeleeDamage() const;
+
+    float calculateBreakProbability() const;
+
+    /*
+    Requires `weapon != nullptr`
+    */
+    void breakWeapon();
+
     void moveTo(Coord2i cell);
+
+    /*
+    Requires `cell` to be a coord of a valid cell with a wall on it
+    */
+    void tryMoveInWall(Coord2i cell);
+
+    /*
+    Requires:
+    - `cell` to be a coord of a valid cell
+    - `weapon != nullptr`
+    - `weapon` can dig
+    */
+    void dig(Coord2i cell);
 
     void levelUp();
 
