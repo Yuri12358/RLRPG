@@ -59,7 +59,7 @@ void Enemy::shoot() {
     for (int i = 1; i < weapon->range + ammo->range; i++) {
         Coord2i cell = pos + offset * i;
 
-        if (g_game.level()[cell] == 2)
+        if (g_game.level()[cell] == LevelCell::Wall)
             break;
 
         auto const & unitMap = g_game.getUnitMap();
@@ -121,7 +121,7 @@ tl::optional<Coord2i> Enemy::searchForShortestPath(Coord2i to) const {
             auto const & unitMap = g_game.getUnitMap();
             if (unitMap.isIndex(tv)
                     and (not unitMap[tv] or unitMap[tv]->getType() == Unit::Type::Hero)
-                    and g_game.level()[tv] != 2 and used[tv] == 0) {
+                    and g_game.level()[tv] != LevelCell::Wall and used[tv] == 0) {
                 q.push(tv);
                 used[tv] = 1 + used[v];
             }
@@ -146,7 +146,7 @@ tl::optional<Coord2i> Enemy::searchForShortestPath(Coord2i to) const {
 }
 
 void Enemy::moveTo(Coord2i cell) {
-    if (g_game.level()[cell] == 2)
+    if (g_game.level()[cell] == LevelCell::Wall)
         throw std::logic_error("Trying to move an enemy into a wall");
 
     auto const & unitMap = g_game.getUnitMap();
@@ -199,7 +199,7 @@ void Enemy::updatePosition() {
     std::vector<Coord2i> visibleCells;
 
     g_game.getUnitMap().forEach([&] (Coord2i cell, Ptr<Unit> const & unit) {
-        if (cell != pos and g_game.level()[cell] != 2 and not unit and canSee(cell)) {
+        if (cell != pos and g_game.level()[cell] != LevelCell::Wall and not unit and canSee(cell)) {
             visibleCells.push_back(cell);
         }
     });

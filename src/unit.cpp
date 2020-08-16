@@ -71,7 +71,7 @@ bool Unit::linearVisibilityCheck(Vec2d from, Vec2d to) const {
         Vec2i c = from + Vec2d{ double(i), i * k };
         if (steep)
             std::swap(c.x, c.y);
-        if (g_game.level()[c] == 2)
+        if (g_game.level()[c] == LevelCell::Wall)
             return false;
     }
     return true;
@@ -93,7 +93,7 @@ bool Unit::canSee(Coord2i cell) const {
 
 void Unit::setTo(Coord2i cell) {
     auto& unitMap = g_game.getUnitMap();
-    if (g_game.level()[cell] == 2 or unitMap[cell] or pos == cell)
+    if (g_game.level()[cell] == LevelCell::Wall or unitMap[cell] or pos == cell)
         return;
 
     unitMap.placeUnitAt(std::move(unitMap[pos]), cell);

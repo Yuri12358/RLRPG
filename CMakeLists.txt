@@ -36,6 +36,7 @@ add_executable(RLRPG
 	include/compat/functional.hpp
 	include/compat/algorithm.hpp
 	include/compat/overloaded.hpp
+        include/compat/cstring_view.hpp
         include/abstract_item_loader.hpp
         include/abstract_unit_loader.hpp
         include/array2d.hpp
@@ -51,6 +52,8 @@ add_executable(RLRPG
         include/item_list_formatters.hpp
 	include/items_map.hpp
         include/level.hpp
+        include/level_cell.hpp
+        include/level_map.hpp
         include/log.hpp
         include/ptr.hpp
         include/registry.hpp
@@ -63,6 +66,7 @@ add_executable(RLRPG
         include/yaml_item_loader.hpp
         include/yaml_file_cache.hpp
         include/yaml_unit_loader.hpp
+
         src/termlib/default_window_provider.cpp
         src/enemy.cpp
         src/game.cpp
@@ -71,6 +75,7 @@ add_executable(RLRPG
         src/inventory.cpp
         src/item.cpp
 	src/items_map.cpp
+        src/level_map.cpp
         src/log.cpp
         src/main.cpp
         src/potion.cpp

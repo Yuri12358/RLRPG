@@ -4,6 +4,7 @@
 
 #include<game.hpp>
 #include<utils.hpp>
+#include<level_map.hpp>
 
 using Random = effolkronium::random_static;
 
@@ -24,11 +25,11 @@ void mazeNext(Coord2i start, Coord2i prev, Coord2i curr) {
     Coord2i cell = curr * 2 + 1;
     for (int i = cell.y - 1; i <= cell.y + 1; ++i) {
         for (int j = cell.x - 1; j <= cell.x + 1; ++j) {
-            level.at(i, j) = 2;
+            level.at(i, j) = LevelCell::Wall;
         }
     }
-    level[cell] = 1;
-    level[cell + (prev - curr)] = 1;
+    level[cell] = LevelCell::Empty;
+    level[cell + (prev - curr)] = LevelCell::Empty;
 
     Vec2i dirs[4] = {
         Vec2i{  0, -1 },
@@ -59,7 +60,7 @@ void clearRoom(Coord2i a, Coord2i b) {
         std::swap(a.y, b.y);
     for (int r = a.y; r <= b.y; ++r) {
         for (int c = a.x; c <= b.x; ++c) {
-            g_game.level().at(r, c) = 1;
+            g_game.level().at(r, c) = LevelCell::Empty;
         }
     }
 }

@@ -732,7 +732,7 @@ void Hero::drinkPotion() {
         case Potion::Teleport:
             while (true) {
                 Coord2i pos = { Random::get(0, LEVEL_COLS - 1), Random::get(0, LEVEL_ROWS - 1) };
-                if (g_game.level()[pos] != 2 and not g_game.getUnitMap()[pos]) {
+                if (g_game.level()[pos] != LevelCell::Wall and not g_game.getUnitMap()[pos]) {
                     setTo(pos);
                     break;
                 }
@@ -822,7 +822,7 @@ void Hero::throwAnimated(Ptr<Item> item, Direction direction) {
     for (int i = 0; i < maxDist; i++) {
         auto cell = pos + offset * (i + 1);
 
-        if (g_game.level()[cell] == 2)
+        if (g_game.level()[cell] == LevelCell::Wall)
             break;
 
         auto & unitsMap = g_game.getUnitMap();
@@ -890,7 +890,7 @@ void Hero::shoot() {
     for (int i = 1; i < maxShootDistance; i++) {
         auto const cell = pos + offset * i;
 
-        if (g_game.level()[cell] == 2)
+        if (g_game.level()[cell] == LevelCell::Wall)
             break;
 
         if (g_game.getUnitMap()[cell]) {
@@ -923,7 +923,7 @@ void Hero::dig(Coord2i cell) {
     assert(weapon != nullptr);
     assert(weapon->canDig);
 
-    g_game.level()[cell] = 1;
+    g_game.level()[cell] = LevelCell::Empty;
 
     if (Random::get<bool>(calculateBreakProbability())) {
         breakWeapon();
@@ -952,7 +952,7 @@ void Hero::moveTo(Coord2i cell) {
     auto const & level = g_game.level();
     if (not level.isIndex(cell))
         return;
-    if (level[cell] != 2 or canMoveThroughWalls) {
+    if (level[cell] != LevelCell::Wall or canMoveThroughWalls) {
         auto const & unitsMap = g_game.getUnitMap();
         if (unitsMap[cell] and unitsMap[cell]->getType() == Unit::Type::Enemy) {
             if (weapon != nullptr) {
@@ -964,7 +964,7 @@ void Hero::moveTo(Coord2i cell) {
         } else if (not unitsMap[cell]) {
             setTo(cell);
         }
-    } else if (level[cell] == 2) {
+    } else if (level[cell] == LevelCell::Wall) {
         tryMoveInWall(cell);
     }
 }

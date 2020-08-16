@@ -374,12 +374,7 @@ void Game::loadData() {
 }
 
 void Game::initialize() {
-    initField();
-
-    if (needGenerateMap())
-        generateMaze();
-    else
-        readMap();
+    initLevelMap();
 
     loadData();
 
@@ -432,7 +427,7 @@ void Game::setItems() {
 void Game::spawnHero() {
     while (true) {
         Coord2i pos{ Random::get(0, LEVEL_COLS - 1), Random::get(0, LEVEL_ROWS - 1) };
-        if (levelData[pos] == 1 and not unitMap[pos]) {
+        if (levelMap[pos] == LevelCell::Empty and not unitMap[pos]) {
             auto hero = heroTemplate->clone();
             this->hero = hero.get();
             unitMap.placeUnitAt(std::move(hero), pos);
@@ -444,7 +439,7 @@ void Game::spawnHero() {
 void Game::spawnEnemy() {
     while (true) {
         Coord2i pos{ Random::get(0, LEVEL_COLS - 1), Random::get(0, LEVEL_ROWS - 1) };
-        if (levelData[pos] == 1 and not unitMap[pos]) {
+        if (levelMap[pos] == LevelCell::Empty and not unitMap[pos]) {
             unitMap.placeUnitAt(detail::cloneAny(enemyTypes), pos);
             return;
         }
@@ -508,15 +503,15 @@ tl::optional<CellRenderData> Game::getRenderData(Coord2i cell) {
     } else if (itemsMap[cell].size() > 1) {
         renderData.item = SymbolRenderData{ '^', { TextStyle::Bold, TerminalColor{ Color::Black, Color::White } } };
     }
-    switch (levelData[cell]) {
-        case 1:
+    switch (levelMap[cell]) {
+        case LevelCell::Empty:
             if (heroSeenThisCell) {
                 renderData.level = '.';
             } else {
                 renderData.level = ' ';
             }
             break;
-        case 2:
+        case LevelCell::Wall:
             if (heroSeenThisCell) {
                 renderData.level = SymbolRenderData{ '#', { TextStyle::Bold } };
             } else {
@@ -524,7 +519,7 @@ tl::optional<CellRenderData> Game::getRenderData(Coord2i cell) {
             }
             break;
         default:
-            throw std::logic_error(format("Unknown block id: {}", levelData[cell]));
+            throw std::logic_error(format("Unknown block id: {}", static_cast<int>(levelMap[cell])));
     }
     return renderData;
 }
@@ -607,17 +602,13 @@ void Game::draw() {
         .setCursorPosition(hero->pos);
 }
 
-void Game::initField() {
-    levelData.forEach([] (int & cell) {
-        cell = 1;
-    });
-}
+void Game::initLevelMap() {
+    levelMap.fillWith(LevelCell::Empty);
 
-void Game::readMap() {
-    std::ifstream file{ "map.me" };
-    levelData.forEach([&] (int & cell) {
-        file >> cell;
-    });
+    if (needGenerateMap())
+        generateMaze();
+    else
+        levelMap.loadFromFile("map.me");
 }
 
 bool Game::randomlySetOnMap(Ptr<Item> item) {
@@ -627,7 +618,7 @@ bool Game::randomlySetOnMap(Ptr<Item> item) {
         Coord2i cell{ Random::get(0, LEVEL_COLS - 1),
                       Random::get(0, LEVEL_ROWS - 1) };
 
-        if (g_game.level()[cell] == 1) {
+        if (levelMap[cell] == LevelCell::Empty) {
             drop(std::move(item), cell);
             return true;
         }
@@ -637,7 +628,7 @@ bool Game::randomlySetOnMap(Ptr<Item> item) {
 }
 
 void Game::drop(Ptr<Item> item, Coord2i cell) {
-    assert(levelData[cell] != 2);
+    assert(levelMap[cell] == LevelCell::Empty);
     assert(item != nullptr);
 
     itemsMap.drop(std::move(item), cell);

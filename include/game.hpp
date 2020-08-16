@@ -7,6 +7,7 @@
 #include<registry.hpp>
 #include<meta/check.hpp>
 #include<ptr.hpp>
+#include<level_map.hpp>
 #include<items_map.hpp>
 #include<unit_map.hpp>
 
@@ -56,8 +57,8 @@ class Game {
 public:
     void run();
 
-    LevelData const & level() const { return levelData; }
-    LevelData       & level()       { return levelData; }
+    auto const & level() const { return levelMap; }
+    auto       & level()       { return levelMap; }
 
     Hero const & getHero() const { return *hero; }
     Hero       & getHero()       { return *hero; }
@@ -159,8 +160,7 @@ private:
     void setRandomPotionEffects();
 
     void initialize();
-    void initField();
-    void readMap();
+    void initLevelMap();
 
     ItemPile::iterator findItemAt(Coord2i cell, std::string_view id) {
         return itemsMap.findItemAt(cell, id);
@@ -183,7 +183,7 @@ private:
     Registry<SymbolRenderData> unitRenderData;
     Array2D<tl::optional<CellRenderData>, LEVEL_ROWS, LEVEL_COLS> cachedMap;
 
-    Array2D<int, LEVEL_ROWS, LEVEL_COLS> levelData;
+    LevelMap levelMap;
     ItemsMap itemsMap;
     UnitMap unitMap;
 
