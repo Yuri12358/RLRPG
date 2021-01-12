@@ -22,6 +22,7 @@ public:
     };
 
     Unit() = default;
+    virtual ~Unit() = default;
     Unit(Unit const &);
     Unit & operator=(Unit const &);
 

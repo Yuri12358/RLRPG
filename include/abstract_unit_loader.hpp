@@ -9,6 +9,7 @@
 // Loads hero data and enemyTypes
 class AbstractUnitLoader {
 public:
+    virtual ~AbstractUnitLoader() = default;
     virtual void load() = 0;
 };
 

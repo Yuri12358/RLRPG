@@ -9,6 +9,7 @@
 // Loads foodTypes, armorTypes and others
 class AbstractItemLoader {
 public:
+    virtual ~AbstractItemLoader() = default;
     virtual void load() = 0;
 };
 
